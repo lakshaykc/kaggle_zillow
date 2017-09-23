@@ -57,6 +57,7 @@ class algorithms(object):
         self.sample['parcelid'] = self.sample['ParcelId']
         print("   Merge with property data ...")
         df_test = self.sample.merge(self.prop, on='parcelid', how='left')
+
         print("   ...")
 
         print("   ...")

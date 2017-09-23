@@ -20,10 +20,16 @@ def house_pred():
     t1 = time.time()
 
     # Set data files
-    prop_file = "properties_2016.csv"
-    train_file = "train_2016_v2.csv"
-    df_pkl = "full_df_v2.pkl"
-    sample_file = "sample_submission.csv"
+    # prop_file = "properties_2016.csv"
+    # train_file = "train_2016_v2.csv"
+    # df_pkl = "full_df_v2.pkl"
+    # sample_file = "sample_submission.csv"
+
+    # Set data files - Testing
+    prop_file = "./data_for_testing/prop_sample.csv"
+    train_file = "./data_for_testing/train_sample.csv"
+    df_pkl = "./data_for_testing/df_full_sample.pkl"
+    sample_file = "./data_for_testing/sample_submission_for_testing.csv"
 
     # Weights of different models
     XGB_WEIGHT = 0.6415
