@@ -144,10 +144,13 @@ class house_model(object):
         self.log_entry[5] = score[0]
         self.log_entry[6] = score[1]
         self.log_entry[7] = score[2]
+        self.log_entry[-2] = exec_time
 
         return score, models, test_set, self.log_entry
 
     def house_pred(self,models,sample,type = "test"):
+
+        t2 = time.time()
 
         [m,n] = sample.shape
 
@@ -274,7 +277,7 @@ if __name__ == '__main__':
     light_gbm_params['bagging_fraction'] = 0.85 # sub_row
     light_gbm_params['bagging_freq'] = 40
     light_gbm_params['num_leaves'] = 512        # num_leaf
-    light_gbm_params['min_data'] = 500         # min_data_in_leaf
+    light_gbm_params['min_data'] = 10         # min_data_in_leaf
     light_gbm_params['min_hessian'] = 0.05     # min_sum_hessian_in_leaf
     light_gbm_params['verbose'] = 0
     light_gbm_params['feature_fraction_seed'] = 2
@@ -315,11 +318,16 @@ if __name__ == '__main__':
     # log_df = pd.DataFrame(columns = col_names)
     log_df = pd.read_pickle("log_df.pkl")
 
+    # Set unique ID for each run
     id = int(datetime.now().strftime('%Y%m%d%H%M%S'))
 
     log_entry = [0]*len(log_df.columns.tolist())
     log_entry[0] = id
-    log_entry[-1] = 0.
+    log_entry[-3] = 0. # Status
+
+    # Note about the data and the run_xgboost
+    note = "Test on sample data"
+    log_entry[-1] = note
 
     # Traing the models
     log_entry[1] = type
@@ -350,7 +358,7 @@ if __name__ == '__main__':
         log_entry[9] = 0.
         log_entry[10] = 0.
 
-    log_entry[-1] = 1.
+    log_entry[-3] = 1. # Status = 1, if run is successful
 
     # Update logging dataframes
 
@@ -376,4 +384,6 @@ if __name__ == '__main__':
     xgb_params_2_df.to_pickle("xgb_params_2_df.pkl")
 
     #backup_pkl_path = ""
-    log_df.to_pickle("backup_log" + str(id) + ".pkl")
+    log_df.to_pickle("./back_up_logs/backup_log" + str(id) + ".pkl")
+
+    print("FINISHED---------------------------------------------")
