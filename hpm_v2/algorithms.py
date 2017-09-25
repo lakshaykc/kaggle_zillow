@@ -12,12 +12,14 @@ import datetime as dt
 
 class algorithms(object):
 
-    def __init__(self,prop,train,sample):
+    def __init__(self,prop,train):
         self.prop = prop
         self.train = train
-        self.sample = sample
 
-    def run_light_gbm(self,light_gbm_params):
+
+    def train_light_gbm(self,light_gbm_params):
+# Returns the trained model
+
         params = light_gbm_params
         print( "\nProcessing data for LightGBM ..." )
         for c, dtype in zip(self.prop.columns, self.prop.dtypes):
@@ -35,7 +37,7 @@ class algorithms(object):
         y_train = df_train['logerror'].values
         print(x_train.shape, y_train.shape)
 
-        train_columns = x_train.columns
+        self.train_columns = x_train.columns
 
         for c in x_train.dtypes[x_train.dtypes == object].index.values:
             x_train[c] = (x_train[c] == True)
@@ -52,16 +54,24 @@ class algorithms(object):
         del d_train; gc.collect()
         del x_train; gc.collect()
 
+        return clf
+
+    def predict_light_gbm(self,clf,sample):
+
         print("\nPrepare for LightGBM prediction ...")
         print("   ...")
-        self.sample['parcelid'] = self.sample['ParcelId']
+        try:
+            sample['parcelid'] = sample['ParcelId']
+        except:
+            print("Not using submission sample file")
+            pass
+
         print("   Merge with property data ...")
-        df_test = self.sample.merge(self.prop, on='parcelid', how='left')
-
+        df_test = sample.merge(self.prop, on='parcelid', how='left')
         print("   ...")
 
         print("   ...")
-        x_test = df_test[train_columns]
+        x_test = df_test[self.train_columns]
         print("   ...")
         del df_test; gc.collect()
         print("   Preparing x_test...")
@@ -81,7 +91,7 @@ class algorithms(object):
 
         return p_test
 
-    def run_xgboost(self,xgb_params,num_boost_rounds):
+    def train_xgboost(self,xgb_params,num_boost_rounds):
 
         properties = self.prop
         train_df = self.train
@@ -128,43 +138,56 @@ class algorithms(object):
         print( "\nTraining XGBoost ...")
         model = xgb.train(dict(xgb_params, silent=1), dtrain, num_boost_round=num_boost_rounds)
 
+        del x_train
+        del dtrain
+        del dtest
+        gc.collect()
+
+        return model
+
+    def predict_xgb(self,model,test_parcelid_df):
+
+        properties = test_parcelid_df.merge(self.prop, on='parcelid', how='left')
+        for c in properties.columns:
+            properties[c]=properties[c].fillna(-1)
+            if properties[c].dtype == 'object':
+                lbl = LabelEncoder()
+                lbl.fit(list(properties[c].values))
+                properties[c] = lbl.transform(list(properties[c].values))
+
+        x_test = properties.drop(['parcelid'], axis=1)
+        dtest = xgb.DMatrix(x_test)
+
         print( "\nPredicting with XGBoost ...")
         xgb_pred = model.predict(dtest)
 
         print( "\nFirst XGBoost predictions:" )
         print( pd.DataFrame(xgb_pred).head() )
 
-        return xgb_pred
-
-        del df_train
-        del x_train
         del x_test
         del properties
         del dtest
-        del dtrain
         gc.collect()
 
+        return xgb_pred
 
 
-
-    def run_OLS(self,test_date):
+    def train_OLS(self):
 
         properties = self.prop
-        submission = self.sample
         train_tmp = self.train.copy()
 
-        print(len(train_tmp),len(properties),len(submission))
+        print(len(train_tmp),len(properties))
 
         y = train_tmp["logerror"].values
-        test = pd.merge(submission, properties, how='left', left_on='ParcelId', right_on='parcelid')
         properties = [] #memory
 
         exc = [train_tmp.columns[c] for c in range(len(train_tmp.columns)) if train_tmp.dtypes[c] == 'O'] + ['logerror','parcelid']
-        col = [c for c in train_tmp.columns if c not in exc] + ['transactiondate']
+        col = [c for c in train_tmp.columns if c not in exc]
+        if "transactiondate" not in col:
+            col.append("transactiondate")
 
         train_tmp = self.get_features(train_tmp[col])
-        test['transactiondate'] = '2016-01-01' #should use the most common training date
-        test = self.get_features(test[col])
 
         reg = LinearRegression(n_jobs=-1)
         reg.fit(train_tmp, y); print('fit...')
@@ -172,12 +195,33 @@ class algorithms(object):
         print(self.MAE(y, pred_fit))
         train_tmp = []; y = [] #memory
 
+        return reg
+
+    def predict_OLS(self,reg,test_date,sample):
+        properties = self.prop
+        submission = sample
+        train_tmp = self.train.copy()
+
+        try:
+            test = pd.merge(submission, properties, how='left', left_on='ParcelId', right_on='parcelid')
+        except:
+            test = pd.merge(submission, properties, how='left', left_on='parcelid', right_on='parcelid')
+
+        exc = [train_tmp.columns[c] for c in range(len(train_tmp.columns)) if train_tmp.dtypes[c] == 'O'] + ['logerror','parcelid']
+        col = [c for c in train_tmp.columns if c not in exc]
+        if "transactiondate" not in col:
+            col.append("transactiondate")
+
+        test['transactiondate'] = '2016-01-01' #should use the most common training date
+        test = self.get_features(test[col])
+
         test["transactiondate"] = test_date
         ols_pred = reg.predict(self.get_features(test))
 
         return ols_pred
 
     def get_features(self,df):
+        #print df["transactiondate"]
         df["transactiondate"] = pd.to_datetime(df["transactiondate"])
         df["transactiondate_year"] = df["transactiondate"].dt.year
         df["transactiondate_month"] = df["transactiondate"].dt.month

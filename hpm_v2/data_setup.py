@@ -8,10 +8,11 @@ import gc
 
 class data_set(object):
 
-    def __init__(self,prop_file,train_file,df_pkl,sample_file):
+    def __init__(self,prop_file,train_file,df_pkl,sample_file,columns):
 
         print("Reading properties file.......\n")
         self.prop_raw = pd.read_csv(prop_file)
+        self.prop_raw = self.prop_raw[columns]
         print("Reading train file.......\n")
         self.train_raw = pd.read_csv(train_file)
         print("Reading full df pkl.......\n")
@@ -58,7 +59,8 @@ class data_set(object):
                 df_tmp = self.prop_raw[active_features]
                 df_tmp2 = self.prop_filled_B.copy()
                 df_tmp.update(df_tmp2,join='left')
-                df_tmp = df_tmp.fillna(self.prop_filled_B.median()) # filling the last empty rows
+                #df_tmp = df_tmp.fillna(self.prop_filled_B.median()) # filling the last empty rows
+                df_tmp = df_tmp.fillna(df_tmp.median())
                 self.null_check(df_tmp)
                 print("Selected %s with %s" %(data,option))
 
@@ -96,12 +98,12 @@ class data_set(object):
             df_tmp = self.sample
             print("Selected %s" %(data))
 
-        return df_tmp
-
-        check = 1
+        check = 0
         if check == 1:
             # Delete unused dataframes for memory
             del self.prop_raw
             del self.train_raw
             del self.df_full
             gc.collect()
+
+        return df_tmp
