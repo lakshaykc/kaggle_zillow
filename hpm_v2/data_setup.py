@@ -5,6 +5,7 @@ import pandas as pd
 import random
 import datetime as dt
 import gc
+import sys
 
 class data_set(object):
 
@@ -12,7 +13,8 @@ class data_set(object):
 
         print("Reading properties file.......\n")
         self.prop_raw = pd.read_csv(prop_file)
-        self.prop_raw = self.prop_raw[columns]
+        self.columns = columns
+        self.prop_raw = self.prop_raw[self.columns]
         print("Reading train file.......\n")
         self.train_raw = pd.read_csv(train_file)
         print("Reading full df pkl.......\n")
@@ -20,90 +22,66 @@ class data_set(object):
         print("Reading sample file.......\n")
         self.sample = pd.read_csv(sample_file)
 
-        self.n_rows,self.n_columns = self.df_full.shape
-        self.train_w_prop_filled = self.df_full[0:90275]
+    def get_train(self):
+        return self.train_raw
 
-        # Prop df with filled data without the last 11437 empty rows
-        self.prop_filled_A = self.df_full.loc[90275::].drop(["logerror","transactiondate"],axis=1).reset_index()
-        self.prop_filled_A = self.prop_filled_A.drop(["index"],axis=1)
+    def get_sample_submission(self):
+        return self.sample
 
-        # prop df including 11437 empty rows
-        self.prop_filled_B = pd.concat([self.prop_filled_A,self.prop_raw.loc[2973780::]],ignore_index=True)
+    def get_prop(self,option,threshold=0.9):
 
-    # Features with values missing more than threshold percentage will be removed or replaced with -1 or median
-    # Options
-    # 1. threshold removed w knn filled
-    # 2. threshold removed w meadian filled
-    # 3. threshold removed w -1 filled
+        if option == "original":
+            print("Selected original prop")
+            return self.prop_raw
 
-    def null_check(self,df):
-        if df.isnull().sum().any() == True:
-            print("NANs present")
+        elif option == "filled_w_median":
+            print("Selected median filled prop")
+            prop = self.prop_raw.fillna(self.prop_raw.median(),inplace = True)
+            return prop
 
-    def data_to_use(self,data,option = "threshold removed w -1 filled",threshold=0.9):
-        # Returns data -> prop, train, sample  (choose 1)
-        na_perct = self.df_full.isnull().sum().values/(self.n_rows*1.0)
-        df_na_summary = pd.DataFrame(self.df_full.columns.tolist(),columns=["Feature"])
-        df_na_summary["% NA"] = na_perct
-        active_features = df_na_summary["Feature"][df_na_summary["% NA"] <= threshold].values
+        elif option == "filled_w_-1":
+            print("Selected -1 filled prop")
+            for c in self.prop_raw.columns:
+                self.prop_raw[c]=self.prop_raw[c].fillna(-1)
+            return self.prop_raw
 
-        if data == "prop":
-            active_features = np.delete(active_features,[1,2]) #removes logerror, transactiondate
-            if option == "threshold removed w knn filled":
-                df_tmp = self.prop_filled_B[active_features]
-                df_tmp = df_tmp.fillna(self.prop_filled_B.median()) # filling the last empty rows
-                self.null_check(df_tmp)
-                print("Selected %s with %s" %(data,option))
+        elif option == "filled_w_knn_-1":
+            self.n_rows,self.n_columns = self.df_full.shape
 
-            if option == "threshold removed w median filled":
-                df_tmp = self.prop_raw[active_features]
-                df_tmp2 = self.prop_filled_B.copy()
-                df_tmp.update(df_tmp2,join='left')
-                #df_tmp = df_tmp.fillna(self.prop_filled_B.median()) # filling the last empty rows
-                df_tmp = df_tmp.fillna(df_tmp.median())
-                self.null_check(df_tmp)
-                print("Selected %s with %s" %(data,option))
+            # Prop df with filled data without the last 11437 empty rows
+            self.prop_filled_A = self.df_full.loc[90275::].drop(["logerror","transactiondate"],axis=1).reset_index()
+            self.prop_filled_A = self.prop_filled_A.drop(["index"],axis=1)
 
-            if option == "threshold removed w -1 filled":
-                df_tmp = self.prop_raw[active_features]
-                df_tmp2 = self.prop_filled_B.copy()
-                df_tmp.update(df_tmp2,join='left')
-                df_tmp = df_tmp.fillna(-1) # filling the last empty rows
-                self.null_check(df_tmp)
-                print("Selected %s with %s" %(data,option))
+            # prop df including 11437 empty rows
+            self.prop_filled_B = pd.concat([self.prop_filled_A,self.prop_raw.loc[2973780::]],ignore_index=True)
 
-        if data == "train":
-            if option == "threshold removed w knn filled":
-                df_tmp = self.train_w_prop_filled[active_features]
-                self.null_check(df_tmp)
-                print("Selected %s with %s" %(data,option))
+            # Filter to active features which meet threshold for filled %
+            na_perct = self.df_full.isnull().sum().values/(self.n_rows*1.0)
+            df_na_summary = pd.DataFrame(self.df_full.columns.tolist(),columns=["Feature"])
+            df_na_summary["% NA"] = na_perct
+            active_features = df_na_summary["Feature"][df_na_summary["% NA"] <= threshold].values
 
-            if option == "threshold removed w median filled":
-                df_tmp2 = self.train_raw
-                df_tmp3 = self.train_raw.merge(self.prop_raw, how='left',on='parcelid')
-                df_tmp = df_tmp3[active_features]
-                df_tmp = df_tmp.fillna(df_tmp.median())
-                self.null_check(df_tmp)
-                print("Selected %s with %s" %(data,option))
+            for c in self.prop_filled_B.columns:
+                self.prop_filled_B[c]=self.prop_filled_B[c].fillna(-1)
+            print("Selected knn and -1 filled prop")
+            return prop_filled_B[active_features]
 
-            if option == "threshold removed w -1 filled":
-                df_tmp2 = self.train_raw
-                df_tmp3 = self.train_raw.merge(self.prop_raw, how='left',on='parcelid')
-                df_tmp = df_tmp3[active_features]
-                df_tmp = df_tmp.fillna(-1)
-                self.null_check(df_tmp)
-                print("Selected %s with %s" %(data,option))
+        elif option == "filled_w_knn_median":
+            self.n_rows,self.n_columns = self.df_full.shape
 
-        if data == "sample":
-            df_tmp = self.sample
-            print("Selected %s" %(data))
+            # Prop df with filled data without the last 11437 empty rows
+            self.prop_filled_A = self.df_full.loc[90275::].drop(["logerror","transactiondate"],axis=1).reset_index()
+            self.prop_filled_A = self.prop_filled_A.drop(["index"],axis=1)
 
-        check = 0
-        if check == 1:
-            # Delete unused dataframes for memory
-            del self.prop_raw
-            del self.train_raw
-            del self.df_full
-            gc.collect()
+            # prop df including 11437 empty rows
+            self.prop_filled_B = pd.concat([self.prop_filled_A,self.prop_raw.loc[2973780::]],ignore_index=True)
 
-        return df_tmp
+            # Filter to active features which meet threshold for filled %
+            na_perct = self.df_full.isnull().sum().values/(self.n_rows*1.0)
+            df_na_summary = pd.DataFrame(self.df_full.columns.tolist(),columns=["Feature"])
+            df_na_summary["% NA"] = na_perct
+            active_features = df_na_summary["Feature"][df_na_summary["% NA"] <= threshold].values
+
+            prop = self.prop_filled_B.fillna(self.prop_filled_B.median(),inplace = True)
+            print("Selected knn and median filled prop")
+            return prop[active_features]

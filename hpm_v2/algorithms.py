@@ -9,24 +9,28 @@ import gc
 from sklearn.linear_model import LinearRegression
 import random
 import datetime as dt
+import sys
+import pickle
 
 class algorithms(object):
 
-    def __init__(self,prop,train):
+    def __init__(self,prop,train,train_path=None):
         self.prop = prop
         self.train = train
-
+        self.train_path = train_path # only required for OLS
 
     def train_light_gbm(self,light_gbm_params):
-# Returns the trained model
+        # Returns the trained model
 
-        params = light_gbm_params
-        print( "\nProcessing data for LightGBM ..." )
+        # Process data to save memory
         for c, dtype in zip(self.prop.columns, self.prop.dtypes):
             if dtype == np.float64:
                 self.prop[c] = self.prop[c].astype(np.float32)
 
-        df_train = self.train
+        params = light_gbm_params
+        print( "\nProcessing data for LightGBM ..." )
+        df_train = self.train.merge(self.prop, how='left', on='parcelid')
+        df_train.fillna(df_train.median(),inplace = True)
 
         f_unused = ['parcelid', 'logerror', 'transactiondate',
                     'propertyzoningdesc','propertycountylandusecode',
@@ -66,35 +70,31 @@ class algorithms(object):
             print("Not using submission sample file")
             pass
 
-        print("   Merge with property data ...")
+        print(" LGBM:  Merge with property data ...")
         df_test = sample.merge(self.prop, on='parcelid', how='left')
         print("   ...")
 
-        print("   ...")
         x_test = df_test[self.train_columns]
-        print("   ...")
+
         del df_test; gc.collect()
-        print("   Preparing x_test...")
+        print("LGBM:   Preparing x_test...")
         for c in x_test.dtypes[x_test.dtypes == object].index.values:
             x_test[c] = (x_test[c] == True)
         print("   ...")
         x_test = x_test.values.astype(np.float32, copy=False)
         print("Test shape :", x_test.shape)
 
-        print("\nStart LightGBM prediction ...")
+        print("\n LGBM prediction ...")
         p_test = clf.predict(x_test)
 
         del x_test; gc.collect()
-
-        print( "\nUnadjusted LightGBM predictions:" )
-        print( pd.DataFrame(p_test).head() )
 
         return p_test
 
     def train_xgboost(self,xgb_params,num_boost_rounds):
 
         properties = self.prop
-        train_df = self.train
+        train = self.train
 
         print( "\nProcessing data for XGBoost ...")
         for c in properties.columns:
@@ -104,15 +104,11 @@ class algorithms(object):
                 lbl.fit(list(properties[c].values))
                 properties[c] = lbl.transform(list(properties[c].values))
 
-        for c in train_df.columns:
-            train_df[c]=train_df[c].fillna(-1)
-            if train_df[c].dtype == 'object' and c != "transactiondate":
-                lbl = LabelEncoder()
-                lbl.fit(list(train_df[c].values))
-                train_df[c] = lbl.transform(list(train_df[c].values))
-
+        train_df = train.merge(properties, how='left', on='parcelid')
         x_train = train_df.drop(['parcelid', 'logerror','transactiondate'], axis=1)
         x_test = properties.drop(['parcelid'], axis=1)
+
+
         # shape
         print('Shape train: {}\nShape test: {}'.format(x_train.shape, x_test.shape))
 
@@ -122,7 +118,9 @@ class algorithms(object):
         x_train=train_df.drop(['parcelid', 'logerror','transactiondate'], axis=1)
         y_train = train_df["logerror"].values.astype(np.float32)
         y_mean = np.mean(y_train)
-        # XGBoost Parameters
+
+
+
         xgb_params['base_score'] = y_mean
 
         print('After removing outliers:')
@@ -147,7 +145,7 @@ class algorithms(object):
 
     def predict_xgb(self,model,test_parcelid_df):
 
-        properties = test_parcelid_df.merge(self.prop, on='parcelid', how='left')
+        properties = self.prop
         for c in properties.columns:
             properties[c]=properties[c].fillna(-1)
             if properties[c].dtype == 'object':
@@ -161,9 +159,6 @@ class algorithms(object):
         print( "\nPredicting with XGBoost ...")
         xgb_pred = model.predict(dtest)
 
-        print( "\nFirst XGBoost predictions:" )
-        print( pd.DataFrame(xgb_pred).head() )
-
         del x_test
         del properties
         del dtest
@@ -172,14 +167,14 @@ class algorithms(object):
         return xgb_pred
 
 
-    def train_OLS(self):
+    def train_OLS(self,properties):
 
-        properties = self.prop
-        train_tmp = self.train.copy()
+        train_tmp = pd.read_csv(self.train_path, parse_dates=["transactiondate"])
 
         print(len(train_tmp),len(properties))
 
-        y = train_tmp["logerror"].values
+        train_tmp = pd.merge(train_tmp, properties, how='left', on='parcelid')
+        y = train_tmp['logerror'].values
         properties = [] #memory
 
         exc = [train_tmp.columns[c] for c in range(len(train_tmp.columns)) if train_tmp.dtypes[c] == 'O'] + ['logerror','parcelid']
@@ -190,22 +185,24 @@ class algorithms(object):
         train_tmp = self.get_features(train_tmp[col])
 
         reg = LinearRegression(n_jobs=-1)
-        reg.fit(train_tmp, y); print('fit...')
+        reg.fit(train_tmp, y);
         pred_fit = reg.predict(train_tmp)
-        print(self.MAE(y, pred_fit))
+        #print(self.MAE(y, pred_fit))
         train_tmp = []; y = [] #memory
 
         return reg
 
-    def predict_OLS(self,reg,test_date,sample):
-        properties = self.prop
+    def predict_OLS(self,reg,test_date,sample,properties):
         submission = sample
-        train_tmp = self.train.copy()
+        train_tmp = pd.read_csv(self.train_path, parse_dates=["transactiondate"])
+        train_tmp = pd.merge(train_tmp, properties, how='left', on='parcelid')
 
         try:
             test = pd.merge(submission, properties, how='left', left_on='ParcelId', right_on='parcelid')
         except:
             test = pd.merge(submission, properties, how='left', left_on='parcelid', right_on='parcelid')
+
+        properties = [] #memory
 
         exc = [train_tmp.columns[c] for c in range(len(train_tmp.columns)) if train_tmp.dtypes[c] == 'O'] + ['logerror','parcelid']
         col = [c for c in train_tmp.columns if c not in exc]
@@ -217,7 +214,7 @@ class algorithms(object):
 
         test["transactiondate"] = test_date
         ols_pred = reg.predict(self.get_features(test))
-
+        train_tmp = [] # memory
         return ols_pred
 
     def get_features(self,df):
@@ -231,5 +228,4 @@ class algorithms(object):
 
     def MAE(self,y, ypred):
         # Mean absolute error
-        print("Quality of fit (MAE):")
         return np.sum([abs(y[i]-ypred[i]) for i in range(len(y))]) / len(y)
