@@ -153,7 +153,8 @@ class algorithms(object):
                 lbl.fit(list(properties[c].values))
                 properties[c] = lbl.transform(list(properties[c].values))
 
-        x_test = properties.drop(['parcelid'], axis=1)
+        x_test = test_parcelid_df.merge(properties, how='left', on='parcelid')
+        x_test = x_test.drop(['parcelid'], axis=1)
         dtest = xgb.DMatrix(x_test)
 
         print( "\nPredicting with XGBoost ...")
@@ -178,6 +179,7 @@ class algorithms(object):
         properties = [] #memory
 
         exc = [train_tmp.columns[c] for c in range(len(train_tmp.columns)) if train_tmp.dtypes[c] == 'O'] + ['logerror','parcelid']
+
         col = [c for c in train_tmp.columns if c not in exc]
         if "transactiondate" not in col:
             col.append("transactiondate")
@@ -206,6 +208,7 @@ class algorithms(object):
 
         exc = [train_tmp.columns[c] for c in range(len(train_tmp.columns)) if train_tmp.dtypes[c] == 'O'] + ['logerror','parcelid']
         col = [c for c in train_tmp.columns if c not in exc]
+
         if "transactiondate" not in col:
             col.append("transactiondate")
 

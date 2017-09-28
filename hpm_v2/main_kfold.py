@@ -57,138 +57,161 @@ class house_model(object):
 
         # Instantiate data
         data = data_set(prop_file,train_file,df_pkl,sample_file,self.columns)
-
         #------ Light gbm data---------------------
-        train = data.get_train()
         prop = data.get_prop(self.data_option['lgbm'])
+        train_org = data.get_train()
         #----------------------------------------------------
 
-        # Initialize models
+        # KFold Cross Validation
+        [m,n]  = train_org.shape
+        k = 4
+        kf = KFold(n_splits=k)
+        result_metrics = np.zeros((k,3))
+        count = 0
         models = []
 
-        # Train test split params
-        random_state = 2
-        test_size = 0.1
+        rand_state_1 = 2
+        test_size_1 = 0.1
 
-        if type == "submission":
-            test_set = data.get_sample_submission()
+        X_train1,X_test1 = train_test_split(train_org.index,random_state=rand_state_1,test_size=test_size_1)
+        train_set = train_org.iloc[X_train1]
+        test_set_org = train_org[["parcelid","transactiondate"]].iloc[X_test1]
 
-        if type == "test":
-            X_train,X_test = train_test_split(train.index,test_size=test_size,random_state=random_state)
-            sample = train[["parcelid","transactiondate"]].iloc[X_test]
-            y = train["logerror"].iloc[X_test].values
-            train = train.iloc[X_train]
-            test_set = sample
+        for train_index, test_index in kf.split(train_set):
 
+            print("#########################################################")
+            print("#########################################################")
+            print("#########################################################")
+            print("#########################################################")
+            print("########                              ###################")
+            print("########     Starting Model: %g        ###################" %(count+1))
+            print("########                              ###################")
+            print("#########################################################")
+            print("#########################################################")
+            print("#########################################################")
 
-        # LGB//////////////////////////////////////////////
-        self.algo_lgb = algorithms(prop,train)
-        lgb_model = self.algo_lgb.train_light_gbm(light_gbm_params)
-        if type == 'test':
-            lgb_pred = self.algo_lgb.predict_light_gbm(lgb_model,sample)
+            if type == "submission":
+                test_set_ret = data.get_sample_submission()
+                train = data.get_train()
 
-        del prop; gc.collect()
-        del train; gc.collect()
+            elif type == "test":
+                train = train_set.iloc[train_index]
+                sample = train_set[["parcelid","transactiondate"]].iloc[test_index]
+                y_cv = train_set["logerror"].iloc[test_index].values
+                test_set = sample
 
-        # ----- XGB Data-------------------------------------------------
-        properties = data.get_prop(self.data_option['xgb'])
-        train = data.get_train()
-        if type == "test":
-            X_train,X_test = train_test_split(train.index,test_size=test_size,random_state=random_state)
-            sample = train[["parcelid","transactiondate"]].iloc[X_test]
-            y = train["logerror"].iloc[X_test].values
-            train = train.iloc[X_train]
-            test_set = sample
-        #----------------------------------------------------------------
+            # LGB //////////////////////////////////////////////
+            self.algo_lgb = algorithms(prop,train)
+            lgb_model = self.algo_lgb.train_light_gbm(light_gbm_params)
+            if type == 'test':
+                lgb_pred = self.algo_lgb.predict_light_gbm(lgb_model,sample)
 
-        # XGB///////////////////////////////////////////////
-        self.algo_xgb = algorithms(properties,train)
+            # ----- XGB Data-------------------------------------------------
+            properties = data.get_prop(self.data_option['xgb']).copy()
+            if type == "test":
+                train = train_set.iloc[train_index]
+                sample = train_set[["parcelid","transactiondate"]].iloc[test_index]
+                y_cv = train_set["logerror"].iloc[test_index].values
+                test_set = sample
+            #----------------------------------------------------------------
 
-        xgb_model1 = self.algo_xgb.train_xgboost(xgb_params_1,num_boost_rounds_1)
-        xgb_model2 = self.algo_xgb.train_xgboost(xgb_params_2,num_boost_rounds_2)
+            # XGB //////////////////////////////////////////////////////////
+            self.algo_xgb = algorithms(properties,train)
 
-        if type == "test":
-            test_parcelid_df = sample[["parcelid"]]
-            xgb_pred1 = self.algo_xgb.predict_xgb(xgb_model1,test_parcelid_df)
-            xgb_pred2 = self.algo_xgb.predict_xgb(xgb_model2,test_parcelid_df)
+            xgb_model1 = self.algo_xgb.train_xgboost(xgb_params_1,num_boost_rounds_1)
+            xgb_model2 = self.algo_xgb.train_xgboost(xgb_params_2,num_boost_rounds_2)
 
-        # memory
-        del properties; gc.collect()
-        del train; gc.collect()
+            if type == "test":
+                test_parcelid_df = sample[["parcelid"]]
+                xgb_pred1 = self.algo_xgb.predict_xgb(xgb_model1,test_parcelid_df)
+                xgb_pred2 = self.algo_xgb.predict_xgb(xgb_model2,test_parcelid_df)
 
-        # --------OLS data---------------------------------------------------
-        properties = data.get_prop(self.data_option['ols'])
-        train = data.get_train()
-        if type == "test":
-            X_train,X_test = train_test_split(train.index,test_size=test_size,random_state=random_state)
-            sample = train[["parcelid","transactiondate"]].iloc[X_test]
-            y = train["logerror"].iloc[X_test].values
-            train = train.iloc[X_train]
-            test_set = sample
-        #---------------------------------------------------------------------
+                del properties; gc.collect()
+            # --------OLS data---------------------------------------------------
+            properties = data.get_prop(self.data_option['ols']).copy()
 
-        # OLS/////////////////////////////////////////////////////
-        self.algo_ols = algorithms(properties,train,train_path =train_file )
-        ols_model = self.algo_ols.train_OLS(properties)
+            if type == "test":
+                train = train_set.iloc[train_index]
+                sample = train_set[["parcelid","transactiondate"]].iloc[test_index]
+                y_cv = train_set["logerror"].iloc[test_index].values
+                test_set = sample
+            #-------------------------------------------------------------------
 
-        # clear memory
-        del train
-        gc.collect()
+            # OLS ////////////////////////////////////////////////////////////
+            self.algo_ols = algorithms(properties,train,train_path =train_file )
+            ols_model = self.algo_ols.train_OLS(properties)
 
-        # set default scores
-        score = np.array([0.,0.,0.])
+            # collect the models
+            models.append([lgb_model,xgb_model1,xgb_model2,ols_model])
 
-        if type =="test":
-            ##### COMBINE RESULTS
-            xgb_pred = self.XGB1_WEIGHT*xgb_pred1 + (1-self.XGB1_WEIGHT)*xgb_pred2
-            print( "\nCombining XGBoost, LightGBM, and baseline predicitons ..." )
-            lgb_weight = (1 - self.XGB_WEIGHT - self.BASELINE_WEIGHT) / (1 - self.OLS_WEIGHT)
-            xgb_weight0 = self.XGB_WEIGHT / (1 - self.OLS_WEIGHT)
-            baseline_weight0 =  self.BASELINE_WEIGHT / (1 - self.OLS_WEIGHT)
-            pred0 = xgb_weight0*xgb_pred + baseline_weight0*self.BASELINE_PRED + lgb_weight*lgb_pred
+            # set default scores
+            score = np.array([0.,0.,0.])
 
-            # Predict with OLS
-            print( "\nPredicting with OLS and combining with XGB/LGB/baseline predicitons: ..." )
-            test_date = sample["transactiondate"].values
-            ols_pred = self.algo_ols.predict_OLS(ols_model,test_date,sample,properties)
-            pred = self.OLS_WEIGHT*ols_pred + (1-self.OLS_WEIGHT)*pred0
+            if type =="test":
+                ##### COMBINE RESULTS
+                xgb_pred = self.XGB1_WEIGHT*xgb_pred1 + (1-self.XGB1_WEIGHT)*xgb_pred2
+                print( "\nCombining XGBoost, LightGBM, and baseline predicitons ..." )
+                lgb_weight = (1 - self.XGB_WEIGHT - self.BASELINE_WEIGHT) / (1 - self.OLS_WEIGHT)
+                xgb_weight0 = self.XGB_WEIGHT / (1 - self.OLS_WEIGHT)
+                baseline_weight0 =  self.BASELINE_WEIGHT / (1 - self.OLS_WEIGHT)
+                pred0 = xgb_weight0*xgb_pred + baseline_weight0*self.BASELINE_PRED + lgb_weight*lgb_pred
 
-            # Calculate metrics
-            model_mae = mae(y,pred)
-            model_mse = mse(y,pred)
-            model_r2 = r2_score(y,pred)
+                # Predict with OLS
+                print( "\nPredicting with OLS and combining with XGB/LGB/baseline predicitons: ..." )
+                test_date = sample["transactiondate"].values
+                ols_pred = self.algo_ols.predict_OLS(ols_model,test_date,sample,properties)
+                pred = self.OLS_WEIGHT*ols_pred + (1-self.OLS_WEIGHT)*pred0
 
-            score = np.array([model_mae,model_mse,model_r2])
+                # Calculate metrics
+                model_mae = mae(y_cv,pred)
+                model_mse = mse(y_cv,pred)
+                model_r2 = r2_score(y_cv,pred)
 
+                result_metrics[count,:] = np.array([model_mae,model_mse,model_r2])
+                count += 1
+
+            # Average the score across all models
+            score = np.mean(result_metrics,axis=0)
             print("MAE: %g, MSE: %g, R2: %g" %(score[0],score[1],score[2]))
 
         # End time
         exec_time = time.time() - t1
         print("Execution Time: %g seconds" %exec_time)
 
+        # Log entires
         self.log_entry['Models'] = models
         self.log_entry['CV_MAE'] = score[0]
         self.log_entry['CV_MSE'] = score[1]
         self.log_entry['CV_R2'] = score[2]
         self.log_entry['Training_time'] = exec_time
 
-        models.append([lgb_model,xgb_model1,xgb_model2,ols_model])
+        if type == "test":
+            test_set_ret = train_org[["parcelid","transactiondate","logerror"]].iloc[X_test1]
 
-        return score, models, test_set, self.log_entry
+        del properties; gc.collect()
+        del prop; gc.collect()
+
+        return score, models, test_set_ret, self.log_entry
 
     def house_pred(self,models,sample,type = "test"):
 
         t2 = time.time()
         # define data
-        data = data_set(prop_file,train_file,df_pkl,sample_file,self.columns)
+        data2 = data_set(prop_file,train_file,df_pkl,sample_file,self.columns)
         # required for ols only
-        properties = data.get_prop(self.data_option['ols'])
+        properties = data2.get_prop(self.data_option['ols']).copy()
 
         [m,n] = sample.shape
 
-        y = np.zeros(m)
-        sample["parcelid"] = sample["ParcelId"]
-        test_parcelid_df = sample[["parcelid"]]
+        if type == "test":
+            y = sample["logerror"].values
+            sample = sample.drop(["logerror"],axis=1)
+            test_parcelid_df = sample[["parcelid"]]
+
+        elif type == "submission":
+            y = np.zeros(m)
+            sample["parcelid"] = sample["ParcelId"]
+            test_parcelid_df = sample[["parcelid"]]
 
         # Test dates
         test_dates = ['2016-10-01','2016-11-01','2016-12-01','2017-10-01','2017-11-01','2017-12-01']
@@ -203,10 +226,10 @@ class house_model(object):
         logerr_mat = np.zeros((m,len(test_columns))) # for 6 test dates
 
         for i in range(num_models):
-            lgb_model = models[0][0]
-            xgb_model1 = models[0][1]
-            xgb_model2 = models[0][2]
-            ols_model = models[0][3]
+            lgb_model = models[i][0]
+            xgb_model1 = models[i][1]
+            xgb_model2 = models[i][2]
+            ols_model = models[i][3]
 
             lgb_pred = self.algo_lgb.predict_light_gbm(lgb_model,sample)
 
@@ -221,16 +244,50 @@ class house_model(object):
             baseline_weight0 =  self.BASELINE_WEIGHT / (1 - self.OLS_WEIGHT)
             pred0 = xgb_weight0*xgb_pred + baseline_weight0*self.BASELINE_PRED + lgb_weight*lgb_pred
 
-            print( "\nPredicting with OLS and combining with XGB/LGB/baseline predicitons: ..." )
-            for i in range(len(test_dates)):
-                ols_model = self.algo_ols.train_OLS(properties)
-                ols_pred = self.algo_ols.predict_OLS(ols_model,test_dates[i],sample,properties)
+            if type == "test":
+                print( "\nPredicting with OLS and combining with XGB/LGB/baseline predicitons: ..." )
+                test_date = sample["transactiondate"].values
+                ols_pred = self.algo_ols.predict_OLS(ols_model,test_date,sample,properties)
                 pred = self.OLS_WEIGHT*ols_pred + (1-self.OLS_WEIGHT)*pred0
-                submission = sample
-                submission[test_columns[i]] = [float(format(x, '.4f')) for x in pred]
-                print('predict...', i)
 
-        return submission
+                # Calculate metrics
+                model_mae += mae(y,pred)
+                model_mse += mse(y,pred)
+                model_r2 += r2_score(y,pred)
+
+            elif type == "submission":
+                print( "\nPredicting with OLS and combining with XGB/LGB/baseline predicitons: ..." )
+                for i in range(len(test_dates)):
+                    ols_model = self.algo_ols.train_OLS(properties)
+                    ols_pred = self.algo_ols.predict_OLS(ols_model,test_dates[i],sample,properties)
+                    pred = self.OLS_WEIGHT*ols_pred + (1-self.OLS_WEIGHT)*pred0
+                    submission = sample
+                    submission[test_columns[i]] = [float(format(x, '.4f')) for x in pred]
+                    print('predict...', i)
+
+                print( "\nCombined XGB/LGB/baseline/OLS predictions:" )
+                submission  = submission.drop(["parcelid"],axis=1)
+                sub_mat = submission.as_matrix()
+                logerr_mat += sub_mat[:,1::]
+
+        if type == "submission":
+            logerr_mat = logerr_mat/float(num_models)
+            sub_mat[:,1::] = logerr_mat
+            sub_dict = {}
+            sub_dict["ParcelId"] = sub_mat[:,0].astype(int)
+            for i in range(len(test_columns)):
+                sub_dict[test_columns[i]] = sub_mat[:,i+1]
+            submission = pd.DataFrame(sub_dict)
+            cols = ["ParcelId"] + test_columns
+            submission = submission[cols]
+            return submission
+
+        elif type == "test":
+            print("MAE: %g, MSE: %g, R2: %g" %(model_mae/num_models,
+                                model_mse/num_models,model_r2/num_models))
+            return [model_mae/num_models,model_mse/num_models,model_r2/num_models]
+
+
 
     def write_results(self,submission,id):
         # Write the results to the file
@@ -311,7 +368,6 @@ if __name__ == '__main__':
         'base_score': 0.,
         'silent': 1
     }
-
     num_boost_rounds_1 = 250
 
     xgb_params_2 = {
@@ -325,7 +381,6 @@ if __name__ == '__main__':
         'base_score': 0.,
         'silent': 1
     }
-
     num_boost_rounds_2 = 150
 
     #--------------------------------------------------------------------------
@@ -333,6 +388,7 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
 
     # Initialize dataframes
+
     log_df = pd.read_pickle("./logs/log_df.pkl")
 
     # Set unique ID for each run
@@ -360,23 +416,25 @@ if __name__ == '__main__':
                                         xgb_params_2,num_boost_rounds_2,
                                         type=type)
 
-    if type == "test":
-        print("Validation Score:")
-        print("MAE            MSE           R2")
-        print score
-        log_entry['Test_MAE'] = score[0]
-        log_entry['Test_MSE'] = score[1]
-        log_entry['Test_R2'] = score[2]
-        print("Finished test----------------------")
+    print("Validation Score:")
+    print("MAE            MSE           R2")
+    print score
 
     # Final Prediction
-    elif type == "submission":
-        out = house.house_pred(models,test_set,type = type)
+    out = house.house_pred(models,test_set,type = type)
+
+    if type == "test":
+        print("Score:")
+        print out
+        log_entry['Test_MAE'] = out[0]
+        log_entry['Test_MSE'] = out[1]
+        log_entry['Test_R2'] = out[2]
+
+    if type == "submission":
         house.write_results(out,id)
         log_entry['Test_MAE'] = 0.
         log_entry['Test_MSE'] = 0.
         log_entry['Test_R2'] = 0.
-        print("Finished---- submission files------")
 
     log_entry['Status'] = 1. # Status = 1, if run is successful
 
