@@ -174,6 +174,9 @@ class house_model(object):
 
         models.append([lgb_model,xgb_model1,xgb_model2,ols_model])
 
+        del properties; gc.collect()
+        del data; gc.collect()
+
         return score, models, test_set, self.log_entry
 
     def house_pred(self,models,sample,type = "test"):
@@ -241,16 +244,16 @@ class house_model(object):
 if __name__ == '__main__':
 
     # Set data files
-    #prop_file = "../data/properties_2016.csv"
-    #train_file = "../data/train_2016_v2.csv"
-    #df_pkl = "../data/full_df_v2.pkl"
-    #sample_file = "../data/sample_submission.csv"
+    prop_file = "../data/properties_2016.csv"
+    train_file = "../data/train_2016_v2.csv"
+    df_pkl = "../data/full_df_v2.pkl"
+    sample_file = "../data/sample_submission.csv"
 
     # Set data files - Testing
-    prop_file = "./data_for_testing/prop_sample.csv"
-    train_file = "./data_for_testing/train_sample.csv"
-    df_pkl = "./data_for_testing/df_full_sample.pkl"
-    sample_file = "./data_for_testing/sample_submission_for_testing.csv"
+    #prop_file = "./data_for_testing/prop_sample.csv"
+    #train_file = "./data_for_testing/train_sample.csv"
+    #df_pkl = "./data_for_testing/df_full_sample.pkl"
+    #sample_file = "./data_for_testing/sample_submission_for_testing.csv"
 
     columns_df = pd.read_csv("columns.csv")
 
@@ -258,20 +261,20 @@ if __name__ == '__main__':
     option_1 = "original"
     option_2 =  "filled_w_median"
     option_3 = "filled_w_-1"
-    option_4 = "filled_knn_-1"
-    option_5 = "filled_knn_median"
+    option_4 = "filled_w_knn_-1"
+    option_5 = "filled_w_knn_median"
     #--------------------------------------------------------------------------
     # ------------------------------INPUTS-------------------------------------
     # -------------------------------------------------------------------------
     data_option = {}
-    data_option['lgbm'] = option_1
-    data_option['xgb'] = option_1
+    data_option['lgbm'] = option_5
+    data_option['xgb'] = option_4
     data_option['ols'] = option_1
 
     # Run type
     # test or submission
-    #type = "submission"
-    type = "test"
+    type = "submission"
+    #type = "test"
 
     # Weights of different models
     XGB_WEIGHT = 0.6415
@@ -346,7 +349,7 @@ if __name__ == '__main__':
     log_entry['Status'] = 0. # Status
 
     # Note about the data and the run_xgboost
-    note = "submission, testing output"
+    note = "submission with filled knn data"
     log_entry['Note'] = note
 
     # Traing the models

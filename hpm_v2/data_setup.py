@@ -56,15 +56,15 @@ class data_set(object):
             self.prop_filled_B = pd.concat([self.prop_filled_A,self.prop_raw.loc[2973780::]],ignore_index=True)
 
             # Filter to active features which meet threshold for filled %
-            na_perct = self.df_full.isnull().sum().values/(self.n_rows*1.0)
-            df_na_summary = pd.DataFrame(self.df_full.columns.tolist(),columns=["Feature"])
+            na_perct = self.prop_filled_B.isnull().sum().values/(self.n_rows*1.0)
+            df_na_summary = pd.DataFrame(self.prop_filled_B.columns.tolist(),columns=["Feature"])
             df_na_summary["% NA"] = na_perct
             active_features = df_na_summary["Feature"][df_na_summary["% NA"] <= threshold].values
 
             for c in self.prop_filled_B.columns:
                 self.prop_filled_B[c]=self.prop_filled_B[c].fillna(-1)
             print("Selected knn and -1 filled prop")
-            return prop_filled_B[active_features]
+            return self.prop_filled_B[active_features]
 
         elif option == "filled_w_knn_median":
             self.n_rows,self.n_columns = self.df_full.shape
@@ -77,8 +77,8 @@ class data_set(object):
             self.prop_filled_B = pd.concat([self.prop_filled_A,self.prop_raw.loc[2973780::]],ignore_index=True)
 
             # Filter to active features which meet threshold for filled %
-            na_perct = self.df_full.isnull().sum().values/(self.n_rows*1.0)
-            df_na_summary = pd.DataFrame(self.df_full.columns.tolist(),columns=["Feature"])
+            na_perct = self.prop_filled_B.isnull().sum().values/(self.n_rows*1.0)
+            df_na_summary = pd.DataFrame(self.prop_filled_B.columns.tolist(),columns=["Feature"])
             df_na_summary["% NA"] = na_perct
             active_features = df_na_summary["Feature"][df_na_summary["% NA"] <= threshold].values
 
