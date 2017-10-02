@@ -233,6 +233,11 @@ class house_model(object):
                 submission[test_columns[i]] = [float(format(x, '.4f')) for x in pred]
                 print('predict...', i)
 
+        try:
+            columns_1 = ['ParcelId'] + test_columns
+            submission = submission[columns_1]
+        except:
+            pass
         return submission
 
     def write_results(self,submission,id):
@@ -267,7 +272,7 @@ if __name__ == '__main__':
     # ------------------------------INPUTS-------------------------------------
     # -------------------------------------------------------------------------
     data_option = {}
-    data_option['lgbm'] = option_5
+    data_option['lgbm'] = option_1
     data_option['xgb'] = option_4
     data_option['ols'] = option_1
 
@@ -296,7 +301,7 @@ if __name__ == '__main__':
     light_gbm_params['bagging_fraction'] = 0.85 # sub_row
     light_gbm_params['bagging_freq'] = 40
     light_gbm_params['num_leaves'] = 512        # num_leaf
-    light_gbm_params['min_data'] = 10         # min_data_in_leaf
+    light_gbm_params['min_data'] = 500         # min_data_in_leaf
     light_gbm_params['min_hessian'] = 0.05     # min_sum_hessian_in_leaf
     light_gbm_params['verbose'] = 0
     light_gbm_params['feature_fraction_seed'] = 2
@@ -349,7 +354,7 @@ if __name__ == '__main__':
     log_entry['Status'] = 0. # Status
 
     # Note about the data and the run_xgboost
-    note = "submission with filled knn data"
+    note = "submission with filled knn data and 500 lgbm params"
     log_entry['Note'] = note
 
     # Traing the models
