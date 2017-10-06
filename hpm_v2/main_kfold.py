@@ -64,7 +64,7 @@ class house_model(object):
 
         # KFold Cross Validation
         [m,n]  = train_org.shape
-        k = 4
+        k = 5
         kf = KFold(n_splits=k)
         result_metrics = np.zeros((k,3))
         count = 0
@@ -73,11 +73,13 @@ class house_model(object):
         rand_state_1 = 2
         test_size_1 = 0.1
 
-        X_train1,X_test1 = train_test_split(train_org.index,random_state=rand_state_1,test_size=test_size_1)
-        train_set = train_org.iloc[X_train1]
-        test_set_org = train_org[["parcelid","transactiondate"]].iloc[X_test1]
+        #X_train1,X_test1 = train_test_split(train_org.index,random_state=rand_state_1,test_size=test_size_1)
+        #train_set = train_org.iloc[X_train1]
+        #test_set_org = train_org[["parcelid","transactiondate"]].iloc[X_test1]
 
-        for train_index, test_index in kf.split(train_set):
+        test_set_ret = data.get_sample_submission()
+
+        for train_index, test_index in kf.split(train_org):
 
             print("#########################################################")
             print("#########################################################")
@@ -91,8 +93,7 @@ class house_model(object):
             print("#########################################################")
 
             if type == "submission":
-                test_set_ret = data.get_sample_submission()
-                train = data.get_train()
+                train = train_org.iloc[train_index]
 
             elif type == "test":
                 train = train_set.iloc[train_index]
@@ -168,7 +169,7 @@ class house_model(object):
                 model_r2 = r2_score(y_cv,pred)
 
                 result_metrics[count,:] = np.array([model_mae,model_mse,model_r2])
-                count += 1
+            count += 1
 
             # Average the score across all models
             score = np.mean(result_metrics,axis=0)
@@ -298,16 +299,16 @@ class house_model(object):
 if __name__ == '__main__':
 
     # Set data files
-    #prop_file = "../data/properties_2016.csv"
-    #train_file = "../data/train_2016_v2.csv"
-    #df_pkl = "../data/full_df_v2.pkl"
-    #sample_file = "../data/sample_submission.csv"
+    prop_file = "../data/properties_2016.csv"
+    train_file = "../data/train_2016_v2.csv"
+    df_pkl = "../data/full_df_v2.pkl"
+    sample_file = "../data/sample_submission.csv"
 
     # Set data files - Testing
-    prop_file = "./data_for_testing/prop_sample.csv"
-    train_file = "./data_for_testing/train_sample.csv"
-    df_pkl = "./data_for_testing/df_full_sample.pkl"
-    sample_file = "./data_for_testing/sample_submission_for_testing.csv"
+    #prop_file = "./data_for_testing/prop_sample.csv"
+    #train_file = "./data_for_testing/train_sample.csv"
+    #df_pkl = "./data_for_testing/df_full_sample.pkl"
+    #sample_file = "./data_for_testing/sample_submission_for_testing.csv"
 
     columns_df = pd.read_csv("columns.csv")
 
@@ -327,13 +328,13 @@ if __name__ == '__main__':
 
     # Run type
     # test or submission
-    #type = "submission"
-    type = "test"
+    type = "submission"
+    #type = "test"
 
     # Weights of different models
-    XGB_WEIGHT = 0.6415
+    XGB_WEIGHT = 0.7
     BASELINE_WEIGHT = 0.0056
-    OLS_WEIGHT = 0.0828
+    OLS_WEIGHT = 0.09
     XGB1_WEIGHT = 0.8083  # Weight of first in combination of two XGB models
     BASELINE_PRED = 0.0115   # Baseline based on mean of training data, per Oleg
 
@@ -350,7 +351,7 @@ if __name__ == '__main__':
     light_gbm_params['bagging_fraction'] = 0.85 # sub_row
     light_gbm_params['bagging_freq'] = 40
     light_gbm_params['num_leaves'] = 512        # num_leaf
-    light_gbm_params['min_data'] = 10         # min_data_in_leaf
+    light_gbm_params['min_data'] = 500         # min_data_in_leaf
     light_gbm_params['min_hessian'] = 0.05     # min_sum_hessian_in_leaf
     light_gbm_params['verbose'] = 0
     light_gbm_params['feature_fraction_seed'] = 2
@@ -400,9 +401,12 @@ if __name__ == '__main__':
     log_entry["data_xgb"] = data_option['xgb']
     log_entry["data_ols"] = data_option['ols']
     log_entry['Status'] = 0. # Status
+    log_entry['xgb_weight'] = XGB_WEIGHT
+    log_entry['ols_weight'] = OLS_WEIGHT
+    log_entry['lgbm_weight'] = (1 - XGB_WEIGHT - OLS_WEIGHT)
 
     # Note about the data and the run_xgboost
-    note = "submission, testing output"
+    note = "5 fold on orginal data with xgb: .7 and ols:.09 weight"
     log_entry['Note'] = note
 
     # Traing the models

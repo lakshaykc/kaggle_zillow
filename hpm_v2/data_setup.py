@@ -14,7 +14,6 @@ class data_set(object):
         print("Reading properties file.......\n")
         self.prop_raw = pd.read_csv(prop_file)
         self.columns = columns
-        self.prop_raw = self.prop_raw[self.columns]
         print("Reading train file.......\n")
         self.train_raw = pd.read_csv(train_file)
         print("Reading full df pkl.......\n")

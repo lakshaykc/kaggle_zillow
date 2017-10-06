@@ -13,7 +13,7 @@ from sklearn.model_selection import KFold, train_test_split
 import random
 import datetime as dt
 from datetime import datetime
-from data_setup import data_set
+from data_setup_2 import data_set
 from algorithms import algorithms
 import time
 import sys
@@ -273,13 +273,13 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
     data_option = {}
     data_option['lgbm'] = option_1
-    data_option['xgb'] = option_4
+    data_option['xgb'] = option_1
     data_option['ols'] = option_1
 
     # Run type
     # test or submission
-    type = "submission"
-    #type = "test"
+    #type = "submission"
+    type = "test"
 
     # Weights of different models
     XGB_WEIGHT = 0.6415
@@ -352,9 +352,12 @@ if __name__ == '__main__':
     log_entry["data_xgb"] = data_option['xgb']
     log_entry["data_ols"] = data_option['ols']
     log_entry['Status'] = 0. # Status
+    log_entry['xgb_weight'] = XGB_WEIGHT
+    log_entry['ols_weight'] = OLS_WEIGHT
+    log_entry['lgbm_weight'] = (1 - XGB_WEIGHT - OLS_WEIGHT)
 
     # Note about the data and the run_xgboost
-    note = "submission with filled knn data and 500 lgbm params"
+    note = "Test to check validation score on Baseline"
     log_entry['Note'] = note
 
     # Traing the models
