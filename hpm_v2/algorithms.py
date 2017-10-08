@@ -130,16 +130,16 @@ class algorithms(object):
         print('Shape train: {}\nShape test: {}'.format(x_train.shape, x_test.shape))
 
         # Run XGBoost
-        dtrain = xgb.DMatrix(x_train, y_train)ls
+        dtrain = xgb.DMatrix(x_train, y_train)
         dtest = xgb.DMatrix(x_test)
 
         print("num_boost_rounds="+str(num_boost_rounds))
 
         # train model
         print( "\nTraining XGBoost ...")
-        cvresult = xgb.cv(xgb_params, dtrain, num_boost_round=450, nfold=10,
-                            metrics=['mae'],early_stopping_rounds=None, stratified=True, seed=2,
-                            callbacks=[xgb.callback.print_evaluation(show_stdv=False)])
+        #cvresult = xgb.cv(xgb_params, dtrain, num_boost_round=450, nfold=10,
+        #                    metrics=['mae'],early_stopping_rounds=None, stratified=True, seed=2,
+        #                        callbacks=[xgb.callback.print_evaluation(show_stdv=False)])
 
         model = xgb.train(dict(xgb_params, silent=1), dtrain, num_boost_round=num_boost_rounds)
 
