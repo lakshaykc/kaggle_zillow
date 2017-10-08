@@ -11,6 +11,9 @@ import random
 import datetime as dt
 import sys
 import pickle
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 class algorithms(object):
 
@@ -98,7 +101,7 @@ class algorithms(object):
 
         print( "\nProcessing data for XGBoost ...")
         for c in properties.columns:
-            properties[c]=properties[c].fillna(-1)
+            properties[c]=properties[c].fillna(-999)
             if properties[c].dtype == 'object':
                 lbl = LabelEncoder()
                 lbl.fit(list(properties[c].values))
@@ -127,13 +130,17 @@ class algorithms(object):
         print('Shape train: {}\nShape test: {}'.format(x_train.shape, x_test.shape))
 
         # Run XGBoost
-        dtrain = xgb.DMatrix(x_train, y_train)
+        dtrain = xgb.DMatrix(x_train, y_train)ls
         dtest = xgb.DMatrix(x_test)
 
         print("num_boost_rounds="+str(num_boost_rounds))
 
         # train model
         print( "\nTraining XGBoost ...")
+        cvresult = xgb.cv(xgb_params, dtrain, num_boost_round=450, nfold=10,
+                            metrics=['mae'],early_stopping_rounds=None, stratified=True, seed=2,
+                            callbacks=[xgb.callback.print_evaluation(show_stdv=False)])
+
         model = xgb.train(dict(xgb_params, silent=1), dtrain, num_boost_round=num_boost_rounds)
 
         del x_train

@@ -251,7 +251,7 @@ class house_model(object):
 if __name__ == '__main__':
 
     # Set data files
-    prop_file = "../data/props_2016_w_empty_col.csv"
+    prop_file = "../data/properties_2016.csv"
     train_file = "../data/train_2016_v2.csv"
     df_pkl = "../data/full_df_v2.pkl"
     sample_file = "../data/sample_submission.csv"
@@ -280,8 +280,8 @@ if __name__ == '__main__':
 
     # Run type
     # test or submission
-    #type = "submission"
-    type = "test"
+    type = "submission"
+    #type = "test"
 
     # Weights of different models
     XGB_WEIGHT = 0.9
@@ -359,7 +359,7 @@ if __name__ == '__main__':
     log_entry['lgbm_weight'] = (1 - XGB_WEIGHT - OLS_WEIGHT)
 
     # Note about the data and the run_xgboost
-    note = "Just XGB, on dataset with # of empty elements col"
+    note = "Just XGB,trying xgb cv on the original dataset"
     log_entry['Note'] = note
 
     # Traing the models
