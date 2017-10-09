@@ -14,6 +14,7 @@ import pickle
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_absolute_error
 
 ################
 ################
@@ -72,8 +73,8 @@ print('Shape train: {}\nShape test: {}'.format(x_train.shape, x_test.shape))
 print("\nSetting up data for XGBoost ...")
 # xgboost params
 xgb_params = {
-    'eta': 0.037,
-    'max_depth': 5,
+    'eta': [0.033,.035,.037],
+    'max_depth': [5,6],
     'subsample': 0.80,
     'objective': 'reg:linear',
     'eval_metric': 'mae',
@@ -86,7 +87,18 @@ xgb_params = {
 dtrain = xgb.DMatrix(x_train, y_train)
 dtest = xgb.DMatrix(x_test)
 
-model = xgb.train(dict(xgb_params, silent=1), dtrain, num_boost_round=284)
+#model = xgb.train(dict(xgb_params, silent=1), dtrain, num_boost_round=10)
+model = xgb.train()
+num_boost_round = 10
+clf = GridSearchCV(model(**num_boost_round), xgb_params, cv=5, n_jobs = -1,
+                        scoring='mean_absolute_error',verbose = 2)
+
+dtrain_x = xgb.DMatrix(x_train)
+dtrain_y = xgb.DMatrix(y_train)
+
+clf.fit(dtrain_x,dtrain_y)
+
+print clf.best_estimator_
 
 """
 cvresult = xgb.cv(xgb_params, dtrain, num_boost_round=450, nfold=5,
