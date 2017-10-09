@@ -73,32 +73,38 @@ print('Shape train: {}\nShape test: {}'.format(x_train.shape, x_test.shape))
 print("\nSetting up data for XGBoost ...")
 # xgboost params
 xgb_params = {
-    'eta': [0.033,.035,.037],
-    'max_depth': [5,6],
-    'subsample': 0.80,
-    'objective': 'reg:linear',
-    'eval_metric': 'mae',
-    'lambda': 0.8,
-    'alpha': 0.4,
-    'base_score': y_mean,
-    'silent': 1
+    'learning_rate': [.03,.033,.037,.04],
+    'max_depth': [4],
+    'subsample': [0.6,.7,.8],
+    'objective': ['reg:linear'],
+    'reg_lambda': [0.8,1.0],
+    'reg_alpha': [0.2,.4,.6],
+    'base_score': [y_mean],
+    'silent': [True],
+    'n_estimators':[235]
 }
 
 dtrain = xgb.DMatrix(x_train, y_train)
 dtest = xgb.DMatrix(x_test)
+dtrain_x = x_train.as_matrix()
+dtrain_y = y_train
 
 #model = xgb.train(dict(xgb_params, silent=1), dtrain, num_boost_round=10)
-model = xgb.train()
-num_boost_round = 10
-clf = GridSearchCV(model(**num_boost_round), xgb_params, cv=5, n_jobs = -1,
-                        scoring='mean_absolute_error',verbose = 2)
+#num_boost_round = 10
 
-dtrain_x = xgb.DMatrix(x_train)
-dtrain_y = xgb.DMatrix(y_train)
+model  = xgb.XGBRegressor()
+
+clf = GridSearchCV(model, xgb_params, cv=3, n_jobs = -1,
+                        scoring='neg_mean_absolute_error',verbose = 4)
+
 
 clf.fit(dtrain_x,dtrain_y)
 
-print clf.best_estimator_
+print clf.best_score_
+print clf.best_params_
+df = pd.DataFrame.from_dict(clf.cv_results_)
+df.to_pickle("xgb_gridcv_4.pkl")
+
 
 """
 cvresult = xgb.cv(xgb_params, dtrain, num_boost_round=450, nfold=5,
