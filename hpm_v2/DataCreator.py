@@ -30,6 +30,7 @@ missing = missing.sort_values(by='count',ascending=False)
 missing['prop'] = missing['count']/prop16.shape[0]
 #Features with less than 90% missing, the rest are not very useful
 feat90 = list(missing[missing['prop']<.9].feature)
+emptyfeatures = list(missing[missing['prop']>=.9].feature)
 
 
 print("## ~~~~~~~~~~~~~~~~ Make sure Zipcode is completely imputed ~~~~~~~~~~~~~~~~~~~##")
@@ -143,3 +144,7 @@ categor = ['nf_latlong','airconditioningtypeid','architecturalstyletypeid','buil
 gimmefeatures(prop16,categor)
 #prop16 = prop16.fillna(value = -1)
 prop16.to_csv('../data/NewData_MedianbyZipNegforNA.csv')
+
+#Modifying prop16 to now filter out fields that have over 90% missing
+#prop16_filtered = prop16.drop(emptyfeatures, axis=1, inplace = False)
+
