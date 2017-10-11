@@ -55,25 +55,28 @@ d_train = lgb.Dataset(x_train, label=y_train)
 
 ##### RUN LIGHTGBM
 params = {}
-params['max_bin'] = 10
-params['learning_rate'] = 0.0021 # shrinkage_rate
-params['boosting_type'] = 'gbdt'
-params['objective'] = 'regression'
-params['metric'] = 'l1'          # or 'mae'
-params['sub_feature'] = 0.345
-params['bagging_fraction'] = 0.85 # sub_row
-params['bagging_freq'] = 40
-params['num_leaves'] = 512        # num_leaf
-params['min_data'] = 500         # min_data_in_leaf
-params['min_hessian'] = 0.05     # min_sum_hessian_in_leaf
-params['verbose'] = 0
-params['feature_fraction_seed'] = 2
-params['bagging_seed'] = 3
+params['max_bin'] = [7]
+params['learning_rate'] = [0.0021] # shrinkage_rate
+params['boosting_type'] = ['gbdt']
+params['objective'] = ['regression']
+params['metric'] = ['l1']          # or 'mae'
+params['sub_feature'] = [0.345]
+params['bagging_fraction'] = [0.7] # sub_row
+params['bagging_freq'] = [20]
+params['num_leaves'] = [200,300,400,500]        # num_leaf
+params['min_data'] = [300,500,700]         # min_data_in_leaf
+params['min_hessian'] = [0.05]     # min_sum_hessian_in_leaf
+params['verbose'] = [0]
+params['feature_fraction_seed'] = [2]
+params['bagging_seed'] = [3]
+params['n_estimators'] = [342]
+params['feature_fraction'] = [0.8]
 
 #print("\nFitting LightGBM model ...")
 #clf = lgb.train(params, d_train, 430)
 
-cvresult = lgb.cv(params, d_train, num_boost_round=10, nfold=5,
+"""
+cvresult = lgb.cv(params, d_train, num_boost_round=1000, nfold=5,
                     metrics='mae',early_stopping_rounds=None,
                     stratified=True, verbose_eval=50,seed=2)
 
@@ -82,25 +85,26 @@ x = df.index.values
 y1 = df['l1-mean'].values
 y2 = df['l1-stdv'].values
 
+print np.argmin(y1)
+
 plt.xlabel('Num_boost_rounds')
 plt.ylabel('MAE')
 plt.title('CV')
 plt.plot(x,y1,label='Test-MAE Mean')
-plt.plot(x,y2,label='Test-MAE STDV')
+#plt.plot(x,y2,label='Test-MAE STDV')
 plt.legend()
 plt.savefig("lgbm_cv_5_fold.png")
 
 """
-model  = lbg.XGBRegressor()
+model  = lgb.LGBMRegressor()
 
-clf = GridSearchCV(model, xgb_params, cv=3, n_jobs = -1,
+clf = GridSearchCV(model, params, cv=2, n_jobs = -1,
                         scoring='neg_mean_absolute_error',verbose = 4)
 
 
-clf.fit(dtrain_x,dtrain_y)
+clf.fit(x_train,y_train)
 
 print clf.best_score_
 print clf.best_params_
 df = pd.DataFrame.from_dict(clf.cv_results_)
-df.to_pickle("xgb_gridcv_4.pkl")
-"""
+df.to_pickle("lgbm_gridcv_4.pkl")

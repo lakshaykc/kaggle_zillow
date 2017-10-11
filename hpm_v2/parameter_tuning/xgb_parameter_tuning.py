@@ -28,7 +28,7 @@ from sklearn.metrics import mean_absolute_error
 
 ##### READ IN RAW DATA
 print( "\nReading data from disk ...")
-train = pd.read_csv("../data/train_2016_v2.csv")
+train = pd.read_csv("../../data/train_2016_v2.csv")
 
 
 ################
@@ -41,7 +41,7 @@ train = pd.read_csv("../data/train_2016_v2.csv")
 ##### (I tried keeping a copy, but the program crashed.)
 
 print( "\nRe-reading properties file ...")
-properties = pd.read_csv('../data/properties_2016.csv')
+properties = pd.read_csv('../../data/properties_2016.csv')
 
 ##### PROCESS DATA FOR XGBOOST
 print( "\nProcessing data for XGBoost ...")
@@ -73,12 +73,12 @@ print('Shape train: {}\nShape test: {}'.format(x_train.shape, x_test.shape))
 print("\nSetting up data for XGBoost ...")
 # xgboost params
 xgb_params = {
-    'learning_rate': [.03,.033,.037,.04],
-    'max_depth': [4],
-    'subsample': [0.6,.7,.8],
+    'learning_rate': [.03,0.35],
+    'max_depth': [5,6,7],
+    'subsample': [0.6,0.8],
     'objective': ['reg:linear'],
     'reg_lambda': [0.8,1.0],
-    'reg_alpha': [0.2,.4,.6],
+    'reg_alpha': [.2,.4,.6],
     'base_score': [y_mean],
     'silent': [True],
     'n_estimators':[235]
@@ -94,7 +94,7 @@ dtrain_y = y_train
 
 model  = xgb.XGBRegressor()
 
-clf = GridSearchCV(model, xgb_params, cv=3, n_jobs = -1,
+clf = GridSearchCV(model, xgb_params, cv=2, n_jobs = -1,
                         scoring='neg_mean_absolute_error',verbose = 4)
 
 
