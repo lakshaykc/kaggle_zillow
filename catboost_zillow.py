@@ -4,10 +4,16 @@ from catboost import CatBoostRegressor
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
+import sys
 
-train_df = pd.read_csv('./input/train_2016_v2.csv', parse_dates=['transactiondate'], low_memory=False)
-test_df = pd.read_csv('./input/sample_submission.csv', low_memory=False)
-properties = pd.read_csv('./input/properties_2016.csv', low_memory=False)
+properties = pd.read_csv('../data/NewData_MedianbyZipNegforNA.csv',engine='python')
+for c, dtype in zip(properties.columns, properties.dtypes):
+    if dtype == np.float64:
+        properties[c] = properties[c].astype(np.float32)
+
+train_df = pd.read_csv('../data/train_2016_v2.csv', parse_dates=['transactiondate'], low_memory=False)
+test_df = pd.read_csv('../data/sample_submission.csv', low_memory=False)
+#properties = pd.read_csv('../data/properties_2016.csv', low_memory=False)
 # field is named differently in submission
 test_df['parcelid'] = test_df['ParcelId']
 
@@ -69,6 +75,7 @@ for i, c in enumerate(train_features):
        and not 'sqft' in c \
        and not 'cnt' in c \
        and not 'nbr' in c \
+       and not 'nf_meanNeighSqft' in c\
        and not 'number' in c:
         cat_feature_inds.append(i)
 

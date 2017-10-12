@@ -13,7 +13,7 @@ import sys
 import pickle
 
 # Parameters
-catboost_weight = 0.65
+catboost_weight = 0.85
 OLS_WEIGHT = 1 - catboost_weight
 
 ################
@@ -30,7 +30,7 @@ np.random.seed(17)
 random.seed(17)
 
 train = pd.read_csv("../data/train_2016_v2.csv", parse_dates=["transactiondate"])
-properties = pd.read_csv("../data/properties_2016.csv")
+properties = pd.read_csv("../data/properties_2016_updated.csv")
 submission = pd.read_csv("../data/sample_submission.csv")
 print(len(train),len(properties),len(submission))
 
